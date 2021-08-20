@@ -1,0 +1,22 @@
+---
+containerd:
+  socket: /run/containerd/containerd.sock
+  namespace: services.linuxkit
+checks:
+  - container_task: google
+    http:
+      method: GET
+      url: https://www.google.com
+      expected_body: somekeyword
+      expected_status: 200
+    timeout: 1
+    execution_period: 3
+    initialDelay: 3
+  - container_task: amazon
+    http:
+      method: GET
+      url: https://www.amazon.com
+      expected_status: 200
+    timeout: 1
+    execution_period: 3
+    initialDelay: 3
