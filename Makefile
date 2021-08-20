@@ -8,7 +8,7 @@ GIT_BRANCH 	= $(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT 	= $(shell git rev-parse HEAD)
 BUILD_DATE 	= $(shell date +'%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS 	= "-X main.commit=$(GIT_COMMIT) -X main.version=$(VERSION) -X main.date=$(BUILD_DATE)"
-PORT 		= 8080
+PORT 		= "9891"
 ENV 		= development
 
 export PATH := $(PATH):$(ROOT_DIR)/.bin
@@ -29,7 +29,7 @@ build: setup
 
 .PHONY: run
 run:
-	@($(BIN_PATH) -addr ":$(PORT)" -env $(ENV))
+	@($(BIN_PATH) --addr ":$(PORT)" --env $(ENV))
 
 .PHONY: test -v
 test:
