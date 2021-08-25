@@ -22,7 +22,7 @@ func NewClient(logger *logrus.Logger, socketPath string, namespace string) (*Con
 	client, err := containerd.New(socketPath)
 	ctx := namespaces.WithNamespace(context.Background(), namespace)
 	if err != nil {
-		logger.Error("unable to connect to the containerd socket:", err)
+		logger.Error("Unable to connect to the containerd socket:", err)
 		return nil, err
 	}
 	return &Containerd{
@@ -36,7 +36,7 @@ func (c *Containerd) RestartTask(containerName string) error {
 	ctx := c.Context
 	container, err := c.Client.LoadContainer(ctx, containerName)
 	if err != nil {
-		c.Logger.Error("unable to connect to the containerd socket")
+		c.Logger.Error("Unable to connect to the containerd socket")
 		return err
 	}
 
@@ -83,28 +83,24 @@ func (c *Containerd) stopTask(container containerd.Container) error {
 			return err
 		}
 	case containerd.Running:
-		c.Logger.Debug(">>> 1")
 		statusC, err := task.Wait(ctx)
 		if err != nil {
-			c.Logger.Errorf("container %q: error during wait: %v", container.ID(), err)
+			c.Logger.Errorf("Container %q: error during wait: %v", container.ID(), err)
 		}
-		c.Logger.Debug(">>> 2")
 		if err := task.Kill(ctx, syscall.SIGKILL); err != nil {
 			task.Delete(ctx)
 			return err
 		}
 		status := <-statusC
 		code, _, err := status.Result()
-		c.Logger.Debug(">>> 3")
 		if err != nil {
-			c.Logger.Errorf("container %q: error getting task result code: %v", container.ID(), err)
+			c.Logger.Errorf("Container %q: error getting task result code: %v", container.ID(), err)
 			return err
 		}
 		if code != 0 {
-			c.Logger.Debugf("%s: exited container process: code: %d", container.ID(), status.ExitCode())
+			c.Logger.Errorf("%s: exited container process: code: %d", container.ID(), status.ExitCode())
 		}
 		_, err = task.Delete(ctx)
-		c.Logger.Debug(">>> 4")
 		if err != nil {
 			return err
 		}
