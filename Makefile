@@ -1,4 +1,5 @@
 BIN_NAME 	= containerd-healthcheck
+IMAGE_NAME 	= vouchio/containerd-healthcheck
 ROOT_DIR 	= $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BIN_DIR 	= $(ROOT_DIR)/bin
 BIN_PATH 	= $(ROOT_DIR)/bin/$(BIN_NAME)
@@ -22,7 +23,7 @@ setup: tidy
 	@(./scripts/install-go-release.sh "goreleaser/goreleaser")
 
 .PHONY: build
-build: setup
+build:
 	@(echo "-> Compiling packages")
 	GOOS=linux go build -ldflags $(LDFLAGS) -o $(BIN_PATH) $(CMD_PATH)/main.go
 	@(echo "-> Binary created at '$(BIN_PATH)'")
@@ -31,17 +32,13 @@ build: setup
 run:
 	@($(BIN_PATH) --addr ":$(PORT)" --env $(ENV))
 
-.PHONY: test -v
-test:
-	@(cd test && go test -v)
-
-.PHONY: test-update
-test-update:
-	@(cd test && go test -update)
-
 .PHONY: docker-build
 docker-build:
-	@(docker build -t $(BIN_NAME) .)
+	@(docker build -t $(IMAGE_NAME):$(VERSION) .)
+
+.PHONY: docker-push
+docker-push:
+	@(docker push $(IMAGE_NAME):$(VERSION))
 
 .PHONY: docker-run
 docker-run:
