@@ -5,6 +5,7 @@ import (
 	"containerdhealthcheck/internal/monitoring"
 	"net/http"
 
+	gosundheit "github.com/AppsFlyer/go-sundheit"
 	"github.com/sirupsen/logrus"
 )
 
@@ -15,5 +16,6 @@ type App struct {
 	YAMLConfig   models.YAMLConfig
 	BuildInfo    models.BuildInfo
 	Collector    monitoring.Collector
+	HealthCheck  gosundheit.Health
 	Logger       *logrus.Logger
 }

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"containerdhealthcheck/internal/containerd"
 	"containerdhealthcheck/internal/models"
 	"containerdhealthcheck/internal/monitoring"
 	"fmt"
@@ -14,66 +15,89 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type checkEventsLogger struct{}
+type checkEventsLogger struct {
+	Containerd *containerd.Containerd
+	Checks     []models.Check
+	Logger     *logrus.Logger
+}
+
+func findContainerTask(a []models.Check, x string) int {
+	for i, n := range a {
+		if x == n.ContainerTask {
+			return i
+		}
+	}
+	return len(a)
+}
 
 func (l checkEventsLogger) OnCheckRegistered(name string, res gosundheit.Result) {
 	log.Printf("Check %q registered with initial result: %v\n", name, res)
 }
 
 func (l checkEventsLogger) OnCheckStarted(name string) {
-	log.Printf("Check %q started...\n", name)
 }
 
 func (l checkEventsLogger) OnCheckCompleted(name string, res gosundheit.Result) {
-	log.Printf("Check %q completed with result: %v\n", name, res)
-	if res.ContiguousFailures > 4 {
-		log.Printf("--->> Oh, check %q has %v continguous failures\n", name, res.ContiguousFailures)
+	l.Logger.WithFields(logrus.Fields{
+		"Name":               name,
+		"Details":            res.Details,
+		"Error":              res.Error,
+		"ContiguousFailures": res.ContiguousFailures,
+	}).Info("Check completed")
+
+	idx := findContainerTask(l.Checks, name)
+	check := l.Checks[idx]
+
+	if res.ContiguousFailures >= check.Threshold {
+		err := l.Containerd.RestartTask(name)
+		if err != nil {
+			l.Logger.Error(err)
+		}
+		l.Logger.WithFields(logrus.Fields{
+			"Name":         name,
+			"RestartDelay": check.RestartDelay,
+		}).Info("Task restarted")
+		time.Sleep(check.RestartDelay * time.Second)
 	}
+
 }
 
 // NewApp provides a new service with prometheus http handler
 func NewApp(serverConfig models.ServerConfig, yamlConfig models.YAMLConfig, buildInfo models.BuildInfo, logger *logrus.Logger) (*App, error) {
 
 	collector := monitoring.NewCollector()
+	hchecks := yamlConfig.Checks
 
-	return &App{
-		ServerConfig: serverConfig,
-		YAMLConfig:   yamlConfig,
-		BuildInfo:    buildInfo,
-		Collector:    collector,
-		Logger:       logger,
-	}, nil
+	containerd, err := containerd.NewClient(logger, yamlConfig.Containerd.Socket, yamlConfig.Containerd.Namespace)
+	if err != nil {
+		return nil, err
+	}
 
-}
-
-// Run listens and serves http server using gin
-func (app *App) Run() {
-
-	http.Handle("/metrics", promhttp.Handler())
-
-	app.Logger.Printf("HTTP Server listening on address '%s' in %s environment", app.ServerConfig.Addr, app.ServerConfig.Env)
-
-	app.Logger.Printf("------")
-	app.Logger.Printf("Version: %s", app.BuildInfo.Version)
-	app.Logger.Printf("Server Addr: '%s'", app.ServerConfig.Addr)
-	app.Logger.Printf("------")
-	app.Logger.Printf("")
-
-	h := gosundheit.New(gosundheit.WithCheckListeners(&checkEventsLogger{}))
-
-	for _, c := range app.YAMLConfig.Checks {
-
-		if c.Timeout == 0 {
-			c.Timeout = 1
+	for i := range hchecks {
+		if hchecks[i].Timeout == 0 {
+			hchecks[i].Timeout = 1
 		}
-
-		if c.ExecutionPeriod == 0 {
-			c.ExecutionPeriod = 10
+		if hchecks[i].ExecutionPeriod == 0 {
+			hchecks[i].ExecutionPeriod = 10
 		}
-
-		if c.InitialDelay == 0 {
-			c.InitialDelay = 1
+		if hchecks[i].Threshold == 0 {
+			hchecks[i].Threshold = 3
 		}
+		if hchecks[i].HTTP.Method == "" {
+			hchecks[i].HTTP.Method = "GET"
+		}
+		if hchecks[i].HTTP.ExpectedStatus == 0 {
+			hchecks[i].HTTP.ExpectedStatus = 200
+		}
+	}
+
+	h := gosundheit.New(gosundheit.WithCheckListeners(checkEventsLogger{
+		Containerd: containerd,
+		Logger:     logger,
+		Checks:     hchecks,
+	}))
+
+	for _, c := range hchecks {
 
 		httpCheckConf := checks.HTTPCheckConfig{
 			CheckName:      c.ContainerTask,
@@ -83,8 +107,8 @@ func (app *App) Run() {
 			ExpectedBody:   c.HTTP.ExpectedBody,
 			ExpectedStatus: c.HTTP.ExpectedStatus,
 		}
-
 		httpCheck, err := checks.NewHTTPCheck(httpCheckConf)
+
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -100,6 +124,28 @@ func (app *App) Run() {
 		}
 
 	}
+
+	return &App{
+		ServerConfig: serverConfig,
+		YAMLConfig:   yamlConfig,
+		BuildInfo:    buildInfo,
+		Collector:    collector,
+		Logger:       logger,
+		HealthCheck:  h,
+	}, nil
+
+}
+
+// Run listens and serves http server using gin
+func (app *App) Run() {
+
+	http.Handle("/metrics", promhttp.Handler())
+
+	app.Logger.WithFields(logrus.Fields{
+		"Address":     app.ServerConfig.Addr,
+		"Environment": app.ServerConfig.Env,
+		"Version":     app.BuildInfo.Version,
+	}).Info("HTTP server started")
 
 	app.Logger.Fatal(http.ListenAndServe(app.ServerConfig.Addr, nil))
 

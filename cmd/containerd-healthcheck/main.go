@@ -14,11 +14,6 @@ import (
 
 var version, commit, date string
 
-// Args command-line parameters
-type Args struct {
-	ConfigPath string
-}
-
 func main() {
 
 	var yamlConfig models.YAMLConfig
@@ -38,9 +33,7 @@ func main() {
 	}
 
 	logger := logrus.New()
-	logger.SetFormatter(&logrus.TextFormatter{
-		DisableColors: true,
-	})
+	logger.SetFormatter(&logrus.JSONFormatter{})
 
 	appBuildInfo := models.BuildInfo{
 		Version: version,
@@ -55,15 +48,13 @@ func main() {
 
 	// read configuration from the file and environment variables
 	if err := cleanenv.ReadConfig(*configPath, &yamlConfig); err != nil {
-		fmt.Println(err)
-		os.Exit(2)
+		logger.Fatal(err)
 	}
 
 	err := cleanenv.ReadConfig("config.yml", &yamlConfig)
 
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(2)
+		logger.Fatal(err)
 	}
 
 	server, err := server.NewApp(serverConfig, yamlConfig, appBuildInfo, logger)
