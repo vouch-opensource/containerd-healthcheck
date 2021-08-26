@@ -51,7 +51,7 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	err := cleanenv.ReadConfig("config.yml", &yamlConfig)
+	err := cleanenv.ReadConfig(*configPath, &yamlConfig)
 
 	if err != nil {
 		logger.Fatal(err)
