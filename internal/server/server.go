@@ -6,23 +6,14 @@ import (
 	"containerdhealthcheck/internal/monitoring"
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
 	gosundheit "github.com/AppsFlyer/go-sundheit"
-	"github.com/AppsFlyer/go-sundheit/checks"
 	"github.com/AppsFlyer/go-sundheit/opencensus"
 	"github.com/sirupsen/logrus"
-	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
-	"go.opencensus.io/tag"
-)
-
-var (
-	MTaskRestart = stats.Int64("restart", "Number of restarts per containerd task ", "restarts")
-	KeyTask, _   = tag.NewKey("task")
 )
 
 type checkEventsLogger struct {
@@ -79,29 +70,11 @@ func (l checkEventsLogger) OnCheckCompleted(name string, res gosundheit.Result) 
 func NewApp(serverConfig models.ServerConfig, yamlConfig models.YAMLConfig, buildInfo models.BuildInfo, logger *logrus.Logger) (*App, error) {
 
 	ctx := context.Background()
-	hchecks := yamlConfig.Checks
+	healthChecks := SetCheckDefaults(yamlConfig.Checks)
 
 	containerd, err := containerd.NewClient(logger, yamlConfig.Containerd.Socket, yamlConfig.Containerd.Namespace)
 	if err != nil {
 		return nil, err
-	}
-
-	for i := range hchecks {
-		if hchecks[i].Timeout == 0 {
-			hchecks[i].Timeout = 1
-		}
-		if hchecks[i].ExecutionPeriod == 0 {
-			hchecks[i].ExecutionPeriod = 10
-		}
-		if hchecks[i].Threshold == 0 {
-			hchecks[i].Threshold = 3
-		}
-		if hchecks[i].HTTP.Method == "" {
-			hchecks[i].HTTP.Method = "GET"
-		}
-		if hchecks[i].HTTP.ExpectedStatus == 0 {
-			hchecks[i].HTTP.ExpectedStatus = 200
-		}
 	}
 
 	oc := opencensus.NewMetricsListener()
@@ -109,38 +82,15 @@ func NewApp(serverConfig models.ServerConfig, yamlConfig models.YAMLConfig, buil
 		Context:    ctx,
 		Containerd: containerd,
 		Logger:     logger,
-		Checks:     hchecks,
+		Checks:     healthChecks,
 	}), gosundheit.WithHealthListeners(oc))
 
 	view.Register(opencensus.DefaultHealthViews...)
 	view.Register(monitoring.ViewRestart)
 
-	for _, c := range hchecks {
-
-		httpCheckConf := checks.HTTPCheckConfig{
-			CheckName:      c.ContainerTask,
-			Timeout:        c.Timeout * time.Second,
-			Method:         c.HTTP.Method,
-			URL:            c.HTTP.URL,
-			ExpectedBody:   c.HTTP.ExpectedBody,
-			ExpectedStatus: c.HTTP.ExpectedStatus,
-		}
-		httpCheck, err := checks.NewHTTPCheck(httpCheckConf)
-
-		if err != nil {
-			logger.Error(err)
-		}
-
-		err = h.RegisterCheck(
-			httpCheck,
-			gosundheit.InitialDelay(c.InitialDelay*time.Second),
-			gosundheit.ExecutionPeriod(c.ExecutionPeriod*time.Second),
-		)
-
-		if err != nil {
-			log.Fatal("Failed to register check: ", err)
-		}
-
+	h, err = RegisterChecks(h, healthChecks)
+	if err != nil {
+		return nil, err
 	}
 
 	return &App{
@@ -148,7 +98,7 @@ func NewApp(serverConfig models.ServerConfig, yamlConfig models.YAMLConfig, buil
 		YAMLConfig:   yamlConfig,
 		BuildInfo:    buildInfo,
 		Logger:       logger,
-		HealthCheck:  h,
+		Health:       h,
 	}, nil
 
 }

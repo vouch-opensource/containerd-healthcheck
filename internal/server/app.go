@@ -14,6 +14,6 @@ type App struct {
 	ServerConfig models.ServerConfig
 	YAMLConfig   models.YAMLConfig
 	BuildInfo    models.BuildInfo
-	HealthCheck  gosundheit.Health
+	Health       gosundheit.Health
 	Logger       *logrus.Logger
 }
