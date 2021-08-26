@@ -31,7 +31,10 @@ func findContainerTask(a []models.Check, x string) int {
 }
 
 func (l checkEventsLogger) OnCheckRegistered(name string, res gosundheit.Result) {
-	log.Printf("Check %q registered with initial result: %v\n", name, res)
+	l.Logger.WithFields(logrus.Fields{
+		"Name":    name,
+		"Details": res.Details,
+	}).Info("Check registered")
 }
 
 func (l checkEventsLogger) OnCheckStarted(name string) {
@@ -56,7 +59,7 @@ func (l checkEventsLogger) OnCheckCompleted(name string, res gosundheit.Result) 
 		l.Logger.WithFields(logrus.Fields{
 			"Name":         name,
 			"RestartDelay": check.RestartDelay,
-		}).Info("Task restarted")
+		}).Printf("Task restarted. Waiting %s before the next health check", check.RestartDelay*time.Second)
 		time.Sleep(check.RestartDelay * time.Second)
 	}
 
@@ -140,6 +143,9 @@ func NewApp(serverConfig models.ServerConfig, yamlConfig models.YAMLConfig, buil
 func (app *App) Run() {
 
 	http.Handle("/metrics", promhttp.Handler())
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "OK")
+	})
 
 	app.Logger.WithFields(logrus.Fields{
 		"Address":     app.ServerConfig.Addr,
