@@ -2,7 +2,6 @@ package server
 
 import (
 	"containerdhealthcheck/internal/models"
-	"containerdhealthcheck/internal/monitoring"
 	"net/http"
 
 	gosundheit "github.com/AppsFlyer/go-sundheit"
@@ -15,7 +14,6 @@ type App struct {
 	ServerConfig models.ServerConfig
 	YAMLConfig   models.YAMLConfig
 	BuildInfo    models.BuildInfo
-	Collector    monitoring.Collector
 	HealthCheck  gosundheit.Health
 	Logger       *logrus.Logger
 }

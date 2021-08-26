@@ -4,30 +4,32 @@ import (
 	"containerdhealthcheck/internal/containerd"
 	"containerdhealthcheck/internal/models"
 	"containerdhealthcheck/internal/monitoring"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
+	"contrib.go.opencensus.io/exporter/prometheus"
 	gosundheit "github.com/AppsFlyer/go-sundheit"
 	"github.com/AppsFlyer/go-sundheit/checks"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/AppsFlyer/go-sundheit/opencensus"
 	"github.com/sirupsen/logrus"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/stats/view"
+	"go.opencensus.io/tag"
+)
+
+var (
+	MTaskRestart = stats.Int64("restart", "Number of restarts per containerd task ", "restarts")
+	KeyTask, _   = tag.NewKey("task")
 )
 
 type checkEventsLogger struct {
+	Context    context.Context
 	Containerd *containerd.Containerd
 	Checks     []models.Check
 	Logger     *logrus.Logger
-}
-
-func findContainerTask(a []models.Check, x string) int {
-	for i, n := range a {
-		if x == n.ContainerTask {
-			return i
-		}
-	}
-	return len(a)
 }
 
 func (l checkEventsLogger) OnCheckRegistered(name string, res gosundheit.Result) {
@@ -41,6 +43,7 @@ func (l checkEventsLogger) OnCheckStarted(name string) {
 }
 
 func (l checkEventsLogger) OnCheckCompleted(name string, res gosundheit.Result) {
+
 	l.Logger.WithFields(logrus.Fields{
 		"Name":               name,
 		"Details":            res.Details,
@@ -52,15 +55,22 @@ func (l checkEventsLogger) OnCheckCompleted(name string, res gosundheit.Result) 
 	check := l.Checks[idx]
 
 	if res.ContiguousFailures >= check.Threshold {
+
 		err := l.Containerd.RestartTask(name)
+
 		if err != nil {
 			l.Logger.Error(err)
 		}
+
 		l.Logger.WithFields(logrus.Fields{
 			"Name":         name,
 			"RestartDelay": check.RestartDelay,
 		}).Printf("Task restarted. Waiting %s before the next health check", check.RestartDelay*time.Second)
+
+		monitoring.RecordRestartTask(l.Context, name)
+
 		time.Sleep(check.RestartDelay * time.Second)
+
 	}
 
 }
@@ -68,7 +78,7 @@ func (l checkEventsLogger) OnCheckCompleted(name string, res gosundheit.Result) 
 // NewApp provides a new service with prometheus http handler
 func NewApp(serverConfig models.ServerConfig, yamlConfig models.YAMLConfig, buildInfo models.BuildInfo, logger *logrus.Logger) (*App, error) {
 
-	collector := monitoring.NewCollector()
+	ctx := context.Background()
 	hchecks := yamlConfig.Checks
 
 	containerd, err := containerd.NewClient(logger, yamlConfig.Containerd.Socket, yamlConfig.Containerd.Namespace)
@@ -94,11 +104,16 @@ func NewApp(serverConfig models.ServerConfig, yamlConfig models.YAMLConfig, buil
 		}
 	}
 
-	h := gosundheit.New(gosundheit.WithCheckListeners(checkEventsLogger{
+	oc := opencensus.NewMetricsListener()
+	h := gosundheit.New(gosundheit.WithCheckListeners(oc, checkEventsLogger{
+		Context:    ctx,
 		Containerd: containerd,
 		Logger:     logger,
 		Checks:     hchecks,
-	}))
+	}), gosundheit.WithHealthListeners(oc))
+
+	view.Register(opencensus.DefaultHealthViews...)
+	view.Register(monitoring.ViewRestart)
 
 	for _, c := range hchecks {
 
@@ -113,7 +128,7 @@ func NewApp(serverConfig models.ServerConfig, yamlConfig models.YAMLConfig, buil
 		httpCheck, err := checks.NewHTTPCheck(httpCheckConf)
 
 		if err != nil {
-			fmt.Println(err)
+			logger.Error(err)
 		}
 
 		err = h.RegisterCheck(
@@ -132,7 +147,6 @@ func NewApp(serverConfig models.ServerConfig, yamlConfig models.YAMLConfig, buil
 		ServerConfig: serverConfig,
 		YAMLConfig:   yamlConfig,
 		BuildInfo:    buildInfo,
-		Collector:    collector,
 		Logger:       logger,
 		HealthCheck:  h,
 	}, nil
@@ -142,7 +156,9 @@ func NewApp(serverConfig models.ServerConfig, yamlConfig models.YAMLConfig, buil
 // Run listens and serves http server using gin
 func (app *App) Run() {
 
-	http.Handle("/metrics", promhttp.Handler())
+	exporter, _ := prometheus.NewExporter(prometheus.Options{})
+
+	http.Handle("/metrics", exporter)
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "OK")
 	})
