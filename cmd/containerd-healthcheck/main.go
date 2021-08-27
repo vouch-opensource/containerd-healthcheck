@@ -20,7 +20,7 @@ func main() {
 
 	// Config
 	env := flag.StringP("env", "e", "development", "Application environment")
-	addr := flag.StringP("addr", "a", ":9891", "HTTP address for prometheus endpoint")
+	addr := flag.StringP("addr", "a", ":9434", "HTTP address for prometheus endpoint")
 	configPath := flag.StringP("config", "c", "config.yml", "Path to configuration file")
 	// Version
 	versionOpt := flag.BoolP("version", "v", false, "Print app version")
