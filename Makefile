@@ -9,7 +9,7 @@ GIT_BRANCH 	= $(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT 	= $(shell git rev-parse HEAD)
 BUILD_DATE 	= $(shell date +'%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS 	= "-X main.commit=$(GIT_COMMIT) -X main.version=$(VERSION) -X main.date=$(BUILD_DATE)"
-PORT 		= "9891"
+PORT 		= "9434"
 ENV 		= development
 
 export PATH := $(PATH):$(ROOT_DIR)/.bin
