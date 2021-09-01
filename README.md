@@ -82,14 +82,6 @@ This section is a list of health checks to be performed by the `containerd-healt
 
 By default, the `containerd-healthcheck` daemon serves a prometheus http endpoint with built-in metrics provided by the [go-sundheit](https://github.com/AppsFlyer/go-sundheit) library; also it includes the total number of restarts per task running on containerd. Once the daemon is running, it can be accessed by the address `127.0.0.1:9434/metrics`. A custom address can be defined with the `--addr` argument as well.
 
-## License ##
+## License
 
-```
-Copyright (c) Vouch, Inc. All rights reserved. The use and
-distribution terms for this software are covered by the Eclipse
-Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
-which can be found in the file epl-v10.html at the root of this
-distribution. By using this software in any fashion, you are
-agreeing to be bound by the terms of this license. You must
-not remove this notice, or any other, from this software.
-```
+[MIT](LICENSE)
