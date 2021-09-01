@@ -11,7 +11,6 @@ type YAMLConfig struct {
 }
 
 type ServerConfig struct {
-	Env  string
 	Addr string
 }
 

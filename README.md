@@ -30,7 +30,6 @@ You can also manually download the binary from the [github releases page](https:
 Usage of ./containerd-healthcheck:
   -a, --addr string     HTTP address for prometheus endpoint (default ":9434")
   -c, --config string   Path to configuration file (default "config.yml")
-  -e, --env string      Application environment (default "development")
   -v, --version         Print app version
 ````
 

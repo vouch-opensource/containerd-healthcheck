@@ -10,7 +10,6 @@ GIT_COMMIT 	= $(shell git rev-parse HEAD)
 BUILD_DATE 	= $(shell date +'%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS 	= "-X main.commit=$(GIT_COMMIT) -X main.version=$(VERSION) -X main.date=$(BUILD_DATE)"
 PORT 		= "9434"
-ENV 		= development
 
 export PATH := $(PATH):$(ROOT_DIR)/.bin
 
@@ -30,7 +29,7 @@ build:
 
 .PHONY: run
 run:
-	@($(BIN_PATH) --addr ":$(PORT)" --env $(ENV))
+	@($(BIN_PATH) --addr ":$(PORT)")
 
 .PHONY: docker-build
 docker-build:
@@ -42,7 +41,7 @@ docker-push:
 
 .PHONY: docker-run
 docker-run:
-	@(docker run -p 8080:$(PORT) -e "ENV=$(ENV)" -it $(BIN_NAME):latest)
+	@(docker run -p 8080:$(PORT) -it $(BIN_NAME):latest)
 
 .PHONY: release
 release:

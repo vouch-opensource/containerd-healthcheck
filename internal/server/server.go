@@ -114,9 +114,8 @@ func (app *App) Run() {
 	})
 
 	app.Logger.WithFields(logrus.Fields{
-		"Address":     app.ServerConfig.Addr,
-		"Environment": app.ServerConfig.Env,
-		"Version":     app.BuildInfo.Version,
+		"Address": app.ServerConfig.Addr,
+		"Version": app.BuildInfo.Version,
 	}).Info("HTTP server started")
 
 	app.Logger.Fatal(http.ListenAndServe(app.ServerConfig.Addr, nil))
