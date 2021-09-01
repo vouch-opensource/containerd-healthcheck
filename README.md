@@ -1,10 +1,10 @@
 # containerd-healthcheck
 
-A daemon that connects to containerd and performs health checks to know when to restart a container. It allows you to register async health checks and the task of the container itself, and provides a restart mechanism based on the check configuration.
+A daemon that performs health checks on containers running in containerd. It allows you to register asynchronous health checks for a set of container tasks, and provides a restart mechanism in case of failure.
 
 ## Rationale
 
-[containerd](https://containerd.io/) is an abstraction of kernel features that provide a relatively high-level container interface with limited feature set and typically perform low-level tasks for running a container. Due to its nature of being small and focused, containerd doesn't support health checks like higher-level components as Docker and Kubernetes do. Therefore, this project solves this problem by providing a simple way to let the system know, given a configuration, if a task running with containerd is whether working or not working. If a task is not working, then it "restart" the task - stop and start a new one.
+[containerd](https://containerd.io/) is an abstraction of kernel features that provide a relatively high-level container interface with limited feature set and typically perform low-level tasks for running a container. Due to its nature of being small and focused, containerd doesn't support health checks like higher-level components such as Docker and Kubernetes. Therefore, this project aims to solve this problem by providing a simple way to monitor containers running in containerd. It lets you specify a health check for each container task and provides restart logic in case of failure.
 
 ## Installation
 
@@ -14,13 +14,13 @@ On Linux, you can install using go get:
 go get github.com/vouch-opensource/containerd-healthcheck
 ```
 
-Also, you can run it directly by using its Docker image:
+Alternatively, you can run it directly by using a Docker image:
 
 ```
 docker run -v /run/containerd/containerd.sock:/run/containerd/containerd.sock vouchio/containerd-healthcheck
 ```
 
-Or you can manually download the binary from the [github releases page](https://github.com/vouch-opensource/containerd-healthcheck/releases).
+You can also manually download the binary from the [github releases page](https://github.com/vouch-opensource/containerd-healthcheck/releases).
 
 ## Usage
 
@@ -66,7 +66,7 @@ This section specifies the required information to establish a connection with c
 
 #### `checks`
 
-The section is a list of health checks to be performed by the `containerd-healthcheck`
+This section is a list of health checks to be performed by the `containerd-healthcheck`. Each health check is configured through the following data structure:
 
 * `container_task:` task name of the container, mostly the same as container
 * `execution_period`: check interval to be executed (in seconds)
@@ -81,7 +81,7 @@ The section is a list of health checks to be performed by the `containerd-health
 
 ## Metrics
 
-By default, `containerd-healthcheck` daemon serves a prometheus http endpoint with built-in metrics provided by [go-sundheit](https://github.com/AppsFlyer/go-sundheit) library; also it includes the total number of restarts per task running on containerd. Once the daemon is running, it can be accessed by the address `127.0.0.1:9434/metrics`. A custom address can be defined from `--addr` argument as well.
+By default, the `containerd-healthcheck` daemon serves a prometheus http endpoint with built-in metrics provided by the [go-sundheit](https://github.com/AppsFlyer/go-sundheit) library; also it includes the total number of restarts per task running on containerd. Once the daemon is running, it can be accessed by the address `127.0.0.1:9434/metrics`. A custom address can be defined with the `--addr` argument as well.
 
 ## License ##
 
