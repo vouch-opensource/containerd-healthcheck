@@ -19,7 +19,6 @@ func main() {
 	var yamlConfig models.YAMLConfig
 
 	// Config
-	env := flag.StringP("env", "e", "development", "Application environment")
 	addr := flag.StringP("addr", "a", ":9434", "HTTP address for prometheus endpoint")
 	configPath := flag.StringP("config", "c", "config.yml", "Path to configuration file")
 	// Version
@@ -42,7 +41,6 @@ func main() {
 	}
 
 	serverConfig := models.ServerConfig{
-		Env:  *env,
 		Addr: *addr,
 	}
 

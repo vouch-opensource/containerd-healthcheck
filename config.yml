@@ -1,17 +1,8 @@
 ---
 containerd:
   socket: /run/containerd/containerd.sock
-  namespace: services.linuxkit
+  namespace: default
 checks:
-  - container_task: hello-world-api
-    http:
-      url: http://127.0.0.1:3000
-      expected_body: Hello
-    timeout: 1
-    execution_period: 4
-    initial_delay: 10
-    restart_delay: 10
-    threshold: 3
   - container_task: google
     http:
       url: https://www.google.com
