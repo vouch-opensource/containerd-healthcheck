@@ -13,9 +13,9 @@ import (
 )
 
 type Containerd struct {
-	Logger  *logrus.Logger
 	Client  *containerd.Client
 	Context context.Context
+	Logger  *logrus.Logger
 }
 
 func NewClient(logger *logrus.Logger, socketPath string, namespace string) (*Containerd, error) {
@@ -25,6 +25,7 @@ func NewClient(logger *logrus.Logger, socketPath string, namespace string) (*Con
 		logger.Error("Unable to connect to the containerd socket:", err)
 		return nil, err
 	}
+
 	return &Containerd{
 		Client:  client,
 		Context: ctx,
@@ -40,11 +41,16 @@ func (c *Containerd) RestartTask(containerName string) error {
 		return err
 	}
 
+	task, err := container.Task(ctx, cio.Load)
+	if err != nil {
+		return err
+	}
+
 	if err := c.stopTask(container); err != nil {
 		return err
 	}
 
-	if err := c.startTask(container); err != nil {
+	if err := c.startTask(container, task.IO().Config()); err != nil {
 		return err
 	}
 
@@ -54,15 +60,22 @@ func (c *Containerd) RestartTask(containerName string) error {
 
 }
 
-func (c *Containerd) startTask(container containerd.Container) error {
+func (c *Containerd) startTask(container containerd.Container, ioConfig cio.Config) error {
+
 	ctx := c.Context
-	task, err := container.NewTask(ctx, cio.NullIO)
+
+	task, err := container.NewTask(
+		ctx,
+		logFile(ioConfig.Stdout, ioConfig.Stderr, ioConfig.Terminal))
+
 	if err != nil {
 		return err
 	}
+
 	if err := task.Start(ctx); err != nil {
 		return err
 	}
+
 	return nil
 }
 
