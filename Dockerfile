@@ -21,7 +21,7 @@ COPY ./ ./
 RUN make build
 
 # FINAL STAGE: run application
-FROM alpine:latest  
+FROM alpine:3.15
 
 # dev env always default
 ENV ENV=development
