@@ -46,6 +46,9 @@ func (c *Containerd) RestartTask(containerName string) error {
 		return err
 	}
 
+	print("task io config: \n")
+	print(task.IO().Config())
+
 	if err := c.stopTask(container); err != nil {
 		return err
 	}
